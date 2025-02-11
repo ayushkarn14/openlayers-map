@@ -13,13 +13,18 @@ import Point from "ol/geom/Point";
 import LineString from "ol/geom/LineString";
 import { Icon, Style, Stroke } from "ol/style";
 import XYZ from "ol/source/XYZ";
+import './MapComponent.css';
 
 const MapComponent = () => {
+
+    const audioChunk = useRef([]);
+    const mediaRecorderRef = useRef(null);
     const mapRef = useRef(null);
     const [map, setMap] = useState(null);
     const [vectorSource, setVectorSource] = useState(new VectorSource()); // For markers
     const [routeSource, setRouteSource] = useState(new VectorSource()); // For routes
     const [layers, setLayers] = useState({}); // Store layers for toggling
+    const [recording, setRecording] = useState(false);
 
     useEffect(() => {
         const baseLayer = new TileLayer({ source: new OSM(), visible: true });
@@ -151,15 +156,33 @@ const MapComponent = () => {
             })
         );
 
+        // vectorSource.clear();
         vectorSource.addFeature(marker);
-        vectorSource.clear();
     };
+    const reset = () => {
+        vectorSource.clear();
+        routeSource.clear();
+        map.getView().setZoom(2);
+        if (layers['satellite']) {
+            layers['satellite'].setVisible(false);
+        }
+        if (layers['highways']) {
+            layers['highways'].setVisible(false);
+        }
+        map.getView().setCenter(fromLonLat([0, 0]));
+
+    }
 
     // Function to add a marker by place name
     const addMarkerByPlaceName = async (placeName) => {
         const coordinates = await getCoordinates(placeName);
         if (coordinates) addMarker(coordinates[0], coordinates[1]);
     };
+    const addMultiMarker = async (value) => {
+        for (let i = 0; i < value.length; i++) {
+            addMarkerByPlaceName(value[i]);
+        }
+    }
 
     // Function to find and display route between two places
     const navigateBetweenPlaces = async (startPlace, endPlace) => {
@@ -172,7 +195,7 @@ const MapComponent = () => {
         addMarker(endCoords[0], endCoords[1]); // Add end marker
 
         try {
-            const apiKey = "5b3ce3597851110001cf6248c76bf805b9ea400fbff79d7f1082d508"; // Replace with your API key
+            const apiKey = "5b3ce3597851110001cf6248c76bf805b9ea400fbff79d7f1082d508";
             const response = await axios.get(`https://api.openrouteservice.org/v2/directions/driving-car`, {
                 params: {
                     api_key: apiKey,
@@ -197,32 +220,147 @@ const MapComponent = () => {
         }
     };
 
+    const startRecording = async () => {
+        setRecording(true);
+        try {
+            audioChunk.current = [];
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediarecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediarecorder;
+
+            mediarecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunk.current.push(event.data);
+                }
+            };
+
+            mediarecorder.onstop = () => {
+                setRecording(false);
+                // Create a Blob from the recorded audio chunks
+                const audioBlob = new Blob(audioChunk.current, { type: "audio/wav" });
+                // Generate a URL for the Blob and play the audio
+                const audioURL = URL.createObjectURL(audioBlob);
+                const audioElement = new Audio(audioURL);
+                // audioElement.play();
+
+                //API call
+                const formData = new FormData();
+                formData.append("audio", audioBlob, "recording.wav");
+                axios.post("http://127.0.0.1:8000/transcribe", formData)
+                    .then((response) => {
+                        console.log("Response from server:", response.data);
+                        let command = response.data.command;
+                        let value = response.data.locations;
+                        console.log(command);
+                        console.log(value);
+                        switch (command) {
+                            case 'zoom':
+                                zoomToPlace(value[0]);
+                                break;
+                            case 'marker':
+                                addMultiMarker(value);
+                                break;
+                            case 'route':
+                                navigateBetweenPlaces(value[0], value[1]);
+                                break;
+                            case 'satellite':
+                                if (value[0] == 'on') {
+                                    if (layers['satellite']) {
+                                        layers['satellite'].setVisible(true);
+                                    }
+                                }
+                                else {
+                                    if (layers['satellite']) {
+                                        layers['satellite'].setVisible(false);
+                                    }
+                                }
+                                break;
+                            case 'highways':
+                                if (value[0] == 'on') {
+                                    if (layers['highways']) {
+                                        layers['highways'].setVisible(true);
+                                    }
+                                }
+                                else {
+                                    if (layers['highways']) {
+                                        layers['highways'].setVisible(false);
+                                    }
+                                }
+                                break;
+                            case 'reset':
+                                reset();
+                                break;
+                            default:
+                                console.log("Command not understood");
+
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Error uploading audio:", error);
+                    });
+                // console.log("Playing recorded audio...");
+            };
+
+            mediarecorder.start();
+            console.log("Recording started...");
+        } catch (error) {
+            console.error("Error accessing microphone:", error);
+            setRecording(false);
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current) {
+            mediaRecorderRef.current.stop();
+            console.log("Recording stopped...");
+        }
+    };
+
 
     return (
-        <div>
-            <div>
-                <input type="text" id="placeInput" placeholder="Enter place name" />
-                <button onClick={() => zoomToPlace(document.getElementById("placeInput").value)}>Search & Zoom</button>
-                <button onClick={() => addMarkerByPlaceName(document.getElementById("placeInput").value)}>
-                    Add Marker
-                </button>
+        <div className="map-container">
+
+            <div className="row"></div>
+            <div className="col-3 sidebar">
+                <div className="controls">
+                    <input id="placeInput" type="text" placeholder="Enter place name" className="input-field" />
+                    <button className="btn" onClick={() => zoomToPlace(document.getElementById("placeInput").value)}>Search & Zoom</button>
+                    <button className="btn" onClick={() => addMarkerByPlaceName(document.getElementById("placeInput").value)}>
+                        Add Marker
+                    </button>
+                </div>
+                <div className="controls">
+                    <input id="startPlace" type="text" placeholder="Start place" className="input-field" />
+                    <input id="endPlace" type="text" placeholder="End place" className="input-field" />
+                    <button className="btn" onClick={() => navigateBetweenPlaces(
+                        document.getElementById("startPlace").value,
+                        document.getElementById("endPlace").value
+                    )}>
+                        Find Route
+                    </button>
+                </div>
+                <div className="controls">
+                    <button className="btn" onClick={() => toggleLayer("satellite")}>Toggle Satellite</button>
+                    <button className="btn" onClick={() => toggleLayer("highways")}>Toggle Highways</button>
+                </div>
+                <div className="controls">
+                    {(recording ?
+                        <button className="btn btn-dis">Start Recording</button>
+
+                        :
+                        <button className="btn" onClick={startRecording}>Start Recording</button>
+                    )
+                    }
+                    {(recording ?
+                        <button className="btn" onClick={stopRecording}>Stop Recording</button>
+
+                        :
+                        <button className="btn btn-dis" onClick={stopRecording}>Stop Recording</button>
+                    )
+                    }
+                </div>
             </div>
-            <div>
-                <input type="text" id="startPlace" placeholder="Start place" />
-                <input type="text" id="endPlace" placeholder="End place" />
-                <button onClick={() => navigateBetweenPlaces(
-                    document.getElementById("startPlace").value,
-                    document.getElementById("endPlace").value
-                )}>
-                    Find Route
-                </button>
-            </div>
-            <div>
-                <button onClick={() => toggleLayer("satellite")}>Toggle Satellite</button>
-                <button onClick={() => toggleLayer("terrain")}>Toggle Terrain</button>
-                <button onClick={() => toggleLayer("highways")}>Toggle Highways</button>
-            </div>
-            <div ref={mapRef} style={{ width: "100%", height: "500px" }} />
+            <div className="col-9 map" ref={mapRef}></div>
         </div>
     );
 };

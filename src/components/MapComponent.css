@@ -1,0 +1,71 @@
+body,
+html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+}
+
+
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 20px;
+    background-color: rgba(255, 255, 255, 0.9);
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    z-index: 1;
+    width: 250px;
+}
+
+.input-field {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    width: calc(100% - 22px);
+    display: block;
+    margin: 5px auto;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    background-color: #007bff;
+    color: white;
+    transition: background-color 0.3s;
+    width: calc(100% - 22px);
+    display: block;
+    margin: 5px auto;
+}
+
+.btn-dis {
+    background-color: #84c0ff;
+}
+
+.btn:hover {
+    background-color: #0056b3;
+}
+
+.btn-dis:hover {
+    background-color: #84c0ff;
+}
+
+
+.map {
+    flex-grow: 1;
+    height: 100%;
+    width: 100%;
+    border: none;
+    overflow: hidden;
+    border-radius: 10px;
+}
+
+.map-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+}

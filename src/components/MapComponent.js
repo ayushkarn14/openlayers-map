@@ -13,17 +13,13 @@ import Point from "ol/geom/Point";
 import LineString from "ol/geom/LineString";
 import { Icon, Style, Stroke } from "ol/style";
 import XYZ from "ol/source/XYZ";
-import { ReactMic } from 'react-mic';
 
 const MapComponent = () => {
     const mapRef = useRef(null);
     const [map, setMap] = useState(null);
-    const [record, setRecord] = useState(false);
     const [vectorSource, setVectorSource] = useState(new VectorSource()); // For markers
     const [routeSource, setRouteSource] = useState(new VectorSource()); // For routes
     const [layers, setLayers] = useState({}); // Store layers for toggling
-    const [mediaRecorder, setMediaRecorder] = useState(null);
-    const [audioChunks, setAudioChunks] = useState([]);
 
     useEffect(() => {
         const baseLayer = new TileLayer({ source: new OSM(), visible: true });
@@ -200,82 +196,6 @@ const MapComponent = () => {
             console.error("Error fetching route:", error);
         }
     };
-    // const startRecording = async () => {
-    //     try {
-    //         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    //         const recorder = new MediaRecorder(stream);
-    //         setAudioChunks([]); // Reset chunks at the start
-
-    //         recorder.ondataavailable = (event) => {
-    //             if (event.data.size > 0) {
-    //                 setAudioChunks((prev) => [...prev, event.data]);
-    //             }
-    //         };
-
-    //         recorder.onstop = () => {
-    //             // Create a Blob from the recorded audio chunks
-    //             const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
-    //             // Generate a URL for the Blob and play the audio
-    //             const audioURL = URL.createObjectURL(audioBlob);
-    //             const audioElement = new Audio(audioURL);
-    //             audioElement.play();
-    //             console.log("Playing recorded audio...");
-    //         };
-
-    //         recorder.start();
-    //         setMediaRecorder(recorder);
-    //         console.log("Recording started...");
-    //     } catch (error) {
-    //         console.error("Error accessing microphone:", error);
-    //     }
-    // };
-
-    // const stopRecording = () => {
-    //     if (mediaRecorder) {
-    //         // Audio playback is handled automatically in the onstop event handler.
-    //         mediaRecorder.stop();
-    //         console.log("Recording stopped...");
-    //     }
-    // };
-    const startRecording = () => {
-        setRecord(true);
-    }
-
-    const stopRecording = () => {
-        setRecord(false);
-    }
-
-    const onData = (recordedBlob) => {
-        console.log('chunk of real-time data is: ', recordedBlob);
-    }
-
-    const onStop = (recordedBlob) => {
-        sendAudioToAPI(recordedBlob.blob);
-        console.log('recordedBlob is: ', recordedBlob);
-    }
-
-
-
-    // Send recorded audio to a dummy API
-    const sendAudioToAPI = async (audioBlob) => {
-        const formData = new FormData();
-        formData.append("audio", audioBlob, "recorded_audio.wav");
-
-        try {
-            const response = await fetch("https://192.168.29.19:8000/transcribe", {
-                method: "POST",
-                body: formData,
-            });
-
-            if (response.ok) {
-                console.log("Audio uploaded successfully!");
-            } else {
-                console.error("Error uploading audio:", response.statusText);
-            }
-        } catch (error) {
-            console.error("Error sending audio:", error);
-        }
-    };
 
 
     return (
@@ -301,10 +221,6 @@ const MapComponent = () => {
                 <button onClick={() => toggleLayer("satellite")}>Toggle Satellite</button>
                 <button onClick={() => toggleLayer("terrain")}>Toggle Terrain</button>
                 <button onClick={() => toggleLayer("highways")}>Toggle Highways</button>
-            </div>
-            <div>
-                <button onClick={startRecording}>Start Recording</button>
-                <button onClick={stopRecording}>Stop Recording</button>
             </div>
             <div ref={mapRef} style={{ width: "100%", height: "500px" }} />
         </div>
